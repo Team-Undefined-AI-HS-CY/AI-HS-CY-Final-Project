@@ -1,10 +1,13 @@
+.vscode/
 .venv/
 **/__pycache__/
-Datasets/YOLO
-Datasets/OCR/CNN_Letters
-Datasets/OCR/EnglishFnt
+Datasets/*
+!Datasets/OCR/CNN_Letters/loader.py
+!Datasets/OCR/EnglishFnt/loader.py
 Results/**/*.jpg
 Results/**/*.png
 Results/**/*.csv
 Results/**/*.yaml
 models/*
+.env
+kaggle.json
