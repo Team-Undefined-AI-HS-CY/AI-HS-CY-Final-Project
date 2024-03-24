@@ -1,0 +1,10 @@
+.venv/
+**/__pycache__/
+Datasets/YOLO
+Datasets/OCR/CNN_Letters
+Datasets/OCR/EnglishFnt
+Results/**/*.jpg
+Results/**/*.png
+Results/**/*.csv
+Results/**/*.yaml
+models/*

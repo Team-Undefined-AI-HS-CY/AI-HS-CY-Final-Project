@@ -1,0 +1,16 @@
+pandas
+numpy
+ultralytics
+roboflow
+tensorflow[and-cuda]
+scikit-learn
+ipykernel
+import-ipynb
+matplotlib
+opencv-python
+numba
+cuda-python
+nvidia-pyindex
+nvidia-cudnn
+ipywidgets
+opendatasets
