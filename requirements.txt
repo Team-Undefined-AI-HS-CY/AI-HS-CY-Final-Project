@@ -2,7 +2,7 @@ pandas
 numpy
 ultralytics
 roboflow
-tensorflow[and-cuda]
+tensorflow[and-cuda]==2.15.0.post1
 scikit-learn
 ipykernel
 import-ipynb
@@ -11,7 +11,7 @@ opencv-python
 numba
 cuda-python
 nvidia-pyindex
-nvidia-cudnn
+nvidia-cudnn==8.9.6.50 # MUST BE THIS VERSION EVEN though listed as not compatible with pytorch and ultralytics
 ipywidgets
 opendatasets
 python-dotenv

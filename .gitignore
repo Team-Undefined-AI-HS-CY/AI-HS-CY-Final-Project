@@ -8,6 +8,6 @@ Results/**/*.jpg
 Results/**/*.png
 Results/**/*.csv
 Results/**/*.yaml
-models/*
+Models/*
 .env
 kaggle.json

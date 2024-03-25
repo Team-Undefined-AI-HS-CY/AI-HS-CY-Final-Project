@@ -1,35 +1,35 @@
 import numpy as np
 import tensorflow as tf
+import os
+from utils.general import scale_input
 
 from settings import *
 
 
 def save_model(model, version=1):
-    model.save(f"{OCR_MODEL_BASENAME}v{version}.keras")
-    model.save_weights(f"{OCR_MODEL_BASENAME}v{version}.weights.h5")
-    print(f"Saved model {OCR_MODEL_BASENAME}v{version} to disk")
+    # make a directory for the model
+    os.makedirs(f"{OCR_MODELS_DIR}/v{version}", exist_ok=True)
+    model.save(f"{OCR_MODELS_DIR}/v{version}/model.keras")
+    model.save_weights(f"{OCR_MODELS_DIR}/v{version}/model.weights.h5")
+    print(f"Saved model v{version} to disk")
 
 
 def load_model(version=1):
     # Load the model
-    model = tf.keras.models.load_model(f"{OCR_MODEL_BASENAME}v{version}.keras")
+    model = tf.keras.models.load_model(f"{OCR_MODELS_DIR}/v{version}/model.keras")
 
     # Load weights into new model
-    model.load_weights(f"{OCR_MODEL_BASENAME}v{version}.weights.h5")
-    print(f"Loaded model {OCR_MODEL_BASENAME}v{version} from disk")
+    model.load_weights(f"{OCR_MODELS_DIR}/v{version}/model.weights.h5")
+    print(f"Loaded model v{version} from disk")
 
-    # Compile the model
-    model.compile(
-        optimizer="adam",
-        loss="categorical_crossentropy",
-        metrics=["accuracy"],
-    )
+    # # Compile the model
+    # model.compile(
+    #     optimizer="adam",
+    #     loss="categorical_crossentropy",
+    #     metrics=["accuracy"],
+    # )
 
     return model
-
-
-def scale_input(inp):
-    return inp / 255.0
 
 
 def predict(model, imgs):

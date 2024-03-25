@@ -1,5 +1,5 @@
 from string import ascii_uppercase, digits
-
+import os
 from dotenv import dotenv_values
 
 env = dotenv_values(".env")
@@ -12,12 +12,26 @@ YOLO_DATASETS_DIR = f"{DATASETS_DIR}/YOLO"
 RESULTS_DIR = "Results"
 OCR_RESULTS_DIR = f"{RESULTS_DIR}/OCR"
 YOLO_RESULTS_DIR = f"{RESULTS_DIR}/YOLO"
+MODELS_DIR = "Models"
+OCR_MODELS_DIR = f"{MODELS_DIR}/OCR"
+YOLO_MODELS_DIR = f"{MODELS_DIR}/YOLO"
+
+# Ensure that all the above directories exist
+os.makedirs(DATASETS_DIR, exist_ok=True)
+os.makedirs(OCR_DATASETS_DIR, exist_ok=True)
+os.makedirs(YOLO_DATASETS_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
+os.makedirs(OCR_RESULTS_DIR, exist_ok=True)
+os.makedirs(YOLO_RESULTS_DIR, exist_ok=True)
+os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(OCR_MODELS_DIR, exist_ok=True)
+os.makedirs(YOLO_MODELS_DIR, exist_ok=True)
 
 COMBINED_CHARS = digits + ascii_uppercase
 # DROP THE O character as it is similar to 0
 COMBINED_CHARS = COMBINED_CHARS.replace("O", "")
 
-TRAIN_PERCENT = 0.8
+TRAIN_PERCENT = 0.9
 TEST_PERCENT = 1 - TRAIN_PERCENT
 VALIDATION_PERCENT = 0.2
 
@@ -27,8 +41,6 @@ X_SIZE = 50
 Y_SIZE = 100
 
 INPUT_SHAPE = (Y_SIZE, X_SIZE, 1)  # (Y X C) as it is just black and white we can just use a 2D tensor
-
-OCR_MODEL_BASENAME = "models/ocr_model"
 
 ENGLISH_FNT_FONTS = [
     1,

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import functools
+from PIL import Image, ImageDraw
 
 from settings import *
 
@@ -87,22 +88,66 @@ def pixelate_image(img):
     return cv2.resize(temp, (w, h), interpolation=cv2.INTER_NEAREST)
 
 
+def show_bgr_image(img, title="image"):
+    show_image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), title, cmap=None)
+
+
 def show_image(img, title="image", cmap="gray"):
     plt.imshow(img, cmap=cmap)
     plt.title(title)
     plt.show()
 
 
-def plot_images(images, cmap="gray", background_color="yellow"):
-    fig = plt.figure(figsize=(3, 5))
-    # add yelow background
-    fig.patch.set_facecolor("yellow")
+def plot_images(images, cmap="gray", background_color="yellow", figsize=(5, 5)):
+    # show bgr
+    fig = plt.figure(figsize=figsize)
     gs = gridspec.GridSpec(1, len(images))
     for i, image in enumerate(images):
-        fig.add_subplot(gs[0, i])
-        plt.imshow(image, cmap=cmap)
-        plt.axis("off")
+        ax = plt.subplot(gs[i])
+        if not cmap:
+            ax.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        else:
+            ax.imshow(image, cmap=cmap)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_aspect("auto")
+
+    plt.tight_layout()
     plt.show()
+
+
+def create_flow_chart(images, save=False, output_path="flow_chart.png"):
+    # Convert images to PIL Image objects if they are NumPy arrays
+    images = [Image.fromarray(image) if isinstance(image, np.ndarray) else image for image in images]
+    # Calculate dimensions for the flow chart
+    width = max(image.size[0] for image in images)
+    height = sum(image.size[1] for image in images) + (len(images) - 1) * 50
+
+    # Create a blank canvas for the flow chart
+    flow_chart = Image.new("RGB", (width, height), color="white")
+    draw = ImageDraw.Draw(flow_chart)
+
+    # Initialize y-coordinate for placing images
+    y_offset = 0
+
+    # Paste images onto the flow chart and draw arrows between them
+    increment = 50
+    for image in images:
+        x_offset = (width - image.size[0]) // 2
+        flow_chart.paste(image, (x_offset, y_offset))
+        if y_offset < height - image.size[1]:
+            # make the arrow
+            draw.line([(width // 2, y_offset + image.size[1]), (width // 2 - increment, y_offset + image.size[1] + increment)], fill="black", width=10)
+            draw.line([(width // 2, y_offset + image.size[1]), (width // 2 + increment, y_offset + image.size[1] + increment)], fill="black", width=10)
+        y_offset += image.size[1] + 50
+
+    # Save or display the flow chart
+    if save:
+        flow_chart.save(output_path)
+    else:
+        flow_chart.show()
+
+    return flow_chart
 
 
 def label_components(image):
@@ -129,6 +174,30 @@ def get_bounding_boxes(img):
     bounding_boxes = [cv2.boundingRect(c) for c in cnts]
     return sorted(bounding_boxes, key=functools.cmp_to_key(compare_rects))
 
+def scale_bounding_boxes(boxes, factor_x, factor_y):
+
+    # Calculate average width and height of the bounding boxes
+    avg_width = np.mean([box[2] for box in boxes]).astype(int)
+    avg_height = np.mean([box[3] for box in boxes]).astype(int)
+    print(f"Average width: {avg_width}, Average height: {avg_height}")
+
+    new_boxes = []
+
+    for x, y, w, h in boxes:
+        # Calculate new width and height based on scaling factors
+        new_width = int(avg_width * factor_x)
+        new_height = int(avg_height * factor_y)
+
+        # Calculate new (x, y) coordinates to keep the center fixed
+        new_x = max(0, x - (new_width - w) // 2)
+        new_y = max(0, y - (new_height - h) // 2)
+
+        new_boxes.append((new_x, new_y, new_width, new_height))
+
+    return new_boxes
+
+
+
 def get_components_mask(img, components):
     mask = np.zeros(img.shape, dtype="uint8")
     for label_mask in components:
@@ -136,12 +205,23 @@ def get_components_mask(img, components):
 
     return mask
 
-def visualize_bounding_boxes(img, bounding_boxes, predictions):
+
+def visualize_bounding_boxes(img, bounding_boxes, predictions, font_scale, border_size):
+    img_copy = img.copy()
     for box, prediction in zip(bounding_boxes, predictions):
         x, y, w, h = box
-        cv2.rectangle(img, (x, y), (x + w, y + h), (255, 255, 255), 3)
-        cv2.putText(img, prediction[0], (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
-    return img
+        cv2.rectangle(img_copy, (x, y), (x + w, y + h), (255, 255, 255), int(border_size))
+        cv2.putText(
+            img_copy,
+            prediction,
+            (x, int(y - font_scale * 3)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            (0, 0, 255),
+            int(border_size),
+        )
+    return img_copy
+
 
 def augment_img(img):
     augmented = []
@@ -158,3 +238,42 @@ def augment_img(img):
     # augmented.append(pixelated)
 
     return augmented
+
+
+def get_top_left_char(boxes):
+    top_left = boxes[0]
+    for box in boxes:
+        if box[0] < top_left[0]:  # and box[1] < top_left[1]:
+            top_left = box
+
+    return top_left
+
+
+def get_bottom_right_char(boxes, top_left, height):
+    # must be bottom rightest character which does not fall more than h below top left
+    bottom_right = top_left
+    for box in boxes:
+        if box[0] > bottom_right[0] and box[1] - top_left[1] < height:
+            bottom_right = box
+
+    return bottom_right
+
+
+def get_gradient(c1, c2):
+    print(f"Finding the gradient between {c1} and {c2}")
+    gradient = (c2[1] - c1[1]) / (c2[0] - c1[0])
+
+    return gradient
+
+
+def get_angle_of_rotation(gradient):
+    return np.arctan(gradient) * 180 / np.pi
+
+
+def rotate_image(img, degrees):
+    # Rotate the image
+    rows, cols = img.shape
+    M = cv2.getRotationMatrix2D((cols / 2, rows / 2), degrees, 1)
+    rotated = cv2.warpAffine(img, M, (cols, rows))
+
+    return rotated

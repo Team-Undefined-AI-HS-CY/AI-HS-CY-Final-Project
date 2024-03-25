@@ -18,7 +18,7 @@ def load_dataset(include=COMBINED_CHARS):
         res_matrix = np.zeros(len(COMBINED_CHARS))
         res_matrix[i] = 1 # change the according character position in the result matrix sucessful percentage of 1 (this would be the ideal output)
         # print(res_matrix)
-        char_folder = f"{currend_dir}/license-plate-digits-classification-dataset/{c}"
+        char_folder = f"{currend_dir}/license-plate-digits-classification-dataset/CNN letter Dataset/{c}"
         if not os.path.exists(char_folder):
             print(f"Folder {c} does not exist")
             continue
