@@ -1,3 +1,4 @@
+from email.mime import image
 import cv2
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -5,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 import functools
 from PIL import Image, ImageDraw
+import math
 
 from settings import *
 
@@ -67,17 +69,17 @@ def dilate_image(img, verbose=False, invert=True):
 
 def prepare_img_for_training(img):
     img = scale_to_size(img)
-    img = dilate_image(img)
+    # img = dilate_image(img)
     # clean after dilate
-    img = clean_image(img)
+    img = clean_image(img, invert=True)
 
     return img
 
 
 def prepare_img_for_prediction(img):
     img = scale_to_size(img)
-    img = dilate_image(img, invert=False)
-    img = clean_image(img, invert=False)
+    # img = dilate_image(img, invert=False)
+    img = clean_image(img, invert=True)
 
     return img
 
@@ -137,8 +139,22 @@ def create_flow_chart(images, save=False, output_path="flow_chart.png"):
         flow_chart.paste(image, (x_offset, y_offset))
         if y_offset < height - image.size[1]:
             # make the arrow
-            draw.line([(width // 2, y_offset + image.size[1]), (width // 2 - increment, y_offset + image.size[1] + increment)], fill="black", width=10)
-            draw.line([(width // 2, y_offset + image.size[1]), (width // 2 + increment, y_offset + image.size[1] + increment)], fill="black", width=10)
+            draw.line(
+                [
+                    (width // 2, y_offset + image.size[1]),
+                    (width // 2 - increment, y_offset + image.size[1] + increment),
+                ],
+                fill="black",
+                width=10,
+            )
+            draw.line(
+                [
+                    (width // 2, y_offset + image.size[1]),
+                    (width // 2 + increment, y_offset + image.size[1] + increment),
+                ],
+                fill="black",
+                width=10,
+            )
         y_offset += image.size[1] + 50
 
     # Save or display the flow chart
@@ -174,28 +190,110 @@ def get_bounding_boxes(img):
     bounding_boxes = [cv2.boundingRect(c) for c in cnts]
     return sorted(bounding_boxes, key=functools.cmp_to_key(compare_rects))
 
-def scale_bounding_boxes(boxes, factor_x, factor_y):
 
-    # Calculate average width and height of the bounding boxes
-    avg_width = np.mean([box[2] for box in boxes]).astype(int)
-    avg_height = np.mean([box[3] for box in boxes]).astype(int)
-    print(f"Average width: {avg_width}, Average height: {avg_height}")
+# def scale_bounding_boxes(boxes, image_width, image_height):
+
+#     # Calculate average width and height of the bounding boxes
+#     avg_width = np.mean([box[2] for box in boxes])
+#     avg_height = np.mean([box[3] for box in boxes])
+#     print(f"Average width: {avg_width}, Average height: {avg_height}")
+
+#     # width_to_whole_ratio = avg_width / image_width
+#     # height_to_whole_ratio = avg_height / image_height
+
+#     # # decide on a scaling factor proportional to the ratios, the bigger the ratio the smaller the scaling factor
+#     # K = 1 - (width_to_whole_ratio + height_to_whole_ratio) / 2
+#     # avg_width = int(avg_width * K)
+#     # avg_height = int(avg_height * K)
+
+#     new_boxes = []
+
+#     for box in boxes:
+#         # top left x,y
+#         x, y, w, h = box
+
+#         w_ratio = w / avg_width
+#         h_ratio = h / avg_height
+
+#         new_w = avg_width * w_ratio
+#         new_h = avg_height * h_ratio
+
+#         new_x = max(0, x + (w - new_w) / 2)
+#         new_y = max(0, y + (h - new_h) / 2)
+
+#         # Ensure the new box stays within the image boundaries
+#         # new_x = min(new_x, image_width - new_w)
+#         # new_y = min(new_y, image_height - new_h)
+
+#         # Calculate new top-left corner coordinates
+#         new_x = max(0, x - (new_w - w) / 2)
+#         new_y = max(0, y - (new_h - h) / 2)
+
+
+#         new_x, new_y, new_w, new_h = int(new_x), int(new_y), int(new_w), int(new_h)
+
+#         print(f"Old box: {box}, New box: {(new_x, new_y, new_w, new_h)}")
+
+#         new_boxes.append((int(new_x), int(new_y), int(new_w), int(new_h)))
+
+#     return new_boxes
+
+
+def scale_bounding_boxes(boxes, image_width, image_height):
 
     new_boxes = []
 
-    for x, y, w, h in boxes:
-        # Calculate new width and height based on scaling factors
-        new_width = int(avg_width * factor_x)
-        new_height = int(avg_height * factor_y)
+    for box in boxes:
+        x, y, w, h = box
 
-        # Calculate new (x, y) coordinates to keep the center fixed
-        new_x = max(0, x - (new_width - w) // 2)
-        new_y = max(0, y - (new_height - h) // 2)
+        top_pad, bottom_pad, left_pad, right_pad = get_scaled_box_padding(box, boxes, image_width, image_height)
 
-        new_boxes.append((new_x, new_y, new_width, new_height))
+        new_x = max(0, x - left_pad)
+        new_y = max(0, y - top_pad)
+        new_w = w + left_pad + right_pad
+        new_h = h + top_pad + bottom_pad
+
+        new_x, new_y, new_w, new_h = int(new_x), int(new_y), int(new_w), int(new_h)
+
+        print(f"Old box: {box}, New box: {(new_x, new_y, new_w, new_h)}")
+
+        new_boxes.append((int(new_x), int(new_y), int(new_w), int(new_h)))
 
     return new_boxes
 
+
+def get_scaled_box_padding(box, boxes, image_width, image_height):
+
+    # Calculate average width and height of the bounding boxes
+    avg_width = np.mean([box[2] for box in boxes])
+    avg_height = np.mean([box[3] for box in boxes])
+
+    width_ratio = avg_width / image_width
+    height_ratio = avg_height / image_height
+
+    K = 1.1
+
+    x_ratio = Y_SIZE / X_SIZE
+    y_ratio = 1  # X_SIZE / Y_SIZE
+
+    scale_factor_x = K * (1 - width_ratio) * x_ratio
+    scale_factor_y = K * (1 - height_ratio) * y_ratio
+
+    avg_width = avg_width * scale_factor_x
+    avg_height = avg_height * scale_factor_y
+
+    x, y, w, h = box
+
+    left_pad = (avg_width - w) // 2
+    right_pad = (avg_width - w) // 2
+
+    top_pad = (avg_height - h) // 2
+    bottom_pad = (avg_height - h) // 2
+
+    print(f"Old box: {box}, New box: {(x, y, w, h)}")
+    print(f"Padding: {top_pad, left_pad, bottom_pad, right_pad}")
+
+    return abs(int(top_pad)), abs(int(bottom_pad)), abs(int(left_pad)), abs(int(right_pad))
 
 
 def get_components_mask(img, components):
@@ -206,7 +304,19 @@ def get_components_mask(img, components):
     return mask
 
 
-def visualize_bounding_boxes(img, bounding_boxes, predictions, font_scale, border_size):
+def visualize_bounding_boxes(img, bounding_boxes, predictions):
+
+    avg_width = np.mean([box[2] for box in bounding_boxes])
+    avg_height = np.mean([box[3] for box in bounding_boxes])
+
+    avg_area = avg_width * avg_height
+
+    font_scale_factor = 70
+    border_size_factor = 25
+
+    font_scale = max(1, math.sqrt(avg_area) // font_scale_factor)
+    border_size = max(1, math.sqrt(avg_area) // border_size_factor)
+
     img_copy = img.copy()
     for box, prediction in zip(bounding_boxes, predictions):
         x, y, w, h = box
@@ -214,7 +324,7 @@ def visualize_bounding_boxes(img, bounding_boxes, predictions, font_scale, borde
         cv2.putText(
             img_copy,
             prediction,
-            (x, int(y - font_scale * 3)),
+            (x, int(y - font_scale)),
             cv2.FONT_HERSHEY_SIMPLEX,
             font_scale,
             (0, 0, 255),

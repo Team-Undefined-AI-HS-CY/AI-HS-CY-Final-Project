@@ -37,7 +37,7 @@ VALIDATION_PERCENT = 0.2
 
 RANDOM_STATE = 1
 
-X_SIZE = 50
+X_SIZE = 50#75
 Y_SIZE = 100
 
 INPUT_SHAPE = (Y_SIZE, X_SIZE, 1)  # (Y X C) as it is just black and white we can just use a 2D tensor
