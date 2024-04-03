@@ -1,9 +1,7 @@
-from email.mime import image
 import cv2
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 import functools
 from PIL import Image, ImageDraw
 import math
@@ -19,6 +17,37 @@ def scale_to_size(img, verbose=False):
     # Intercubic is slower but creates less blur overall
     return cv2.resize(img, None, fx=scale_x, fy=scale_y, interpolation=cv2.INTER_CUBIC)
 
+
+# def clean_image(gray_img, threshold_area=0.3, verbose=False, invert=True):
+#     if invert:
+#         _, binary_img = cv2.threshold(gray_img, 0, BG_COLOR, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+#     else:
+#         _, binary_img = cv2.threshold(gray_img, 0, BG_COLOR, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+#     # _, binary_img = cv2.threshold(gray_img, 45, FG_COLOR, cv2.THRESH_BINARY)
+
+#     # show_image(binary_img, "Binary Image")
+
+#     contours, _ = cv2.findContours(binary_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+#     contours = sorted(contours, key=cv2.contourArea, reverse=True)
+#     if verbose:
+#         img_copy = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2BGR)
+#         cv2.drawContours(img_copy, contours, -1, (0, 0, 255), 1)
+#         show_image(img_copy, "Contours drawn", cmap="bgr")
+
+#     largest_contour_area = cv2.contourArea(contours[0])
+
+#     # Remove small contours
+#     for contour in contours:
+#         contour_area = cv2.contourArea(contour)
+#         # print(f"Contour area: {contour_area}, Largest contour area: {largest_contour_area}")
+#         if contour_area < threshold_area * largest_contour_area:
+#             cv2.drawContours(binary_img, [contour], -1, BG_COLOR, -1)
+#         else:
+#             if verbose:
+#                 print(f"Keeping contour with area: {contour_area}")
+
+#     return binary_img
 
 def clean_image(gray_img, threshold_area=0.3, verbose=False, invert=True):
     # Threshold the image to create a binary image
@@ -57,6 +86,12 @@ def compare_rects(rect1, rect2):
         return rect1[0] - rect2[0]
 
 
+# def dilate_image(img, verbose=False, invert=True):
+#     blurred = cv2.GaussianBlur(img, (1, 1), 0)
+#     thresh = cv2.adaptiveThreshold(blurred, BG_COLOR, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 45, 15)
+
+#     return thresh
+
 def dilate_image(img, verbose=False, invert=True):
     blurred = cv2.GaussianBlur(img, (1, 1), 0)
     if invert:
@@ -65,6 +100,7 @@ def dilate_image(img, verbose=False, invert=True):
         thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 45, 15)
 
     return thresh
+
 
 
 def prepare_img_for_training(img):
@@ -89,18 +125,16 @@ def pixelate_image(img):
     temp = cv2.resize(img, (Y_SIZE, X_SIZE), interpolation=cv2.INTER_LINEAR)
     return cv2.resize(temp, (w, h), interpolation=cv2.INTER_NEAREST)
 
-
-def show_bgr_image(img, title="image"):
-    show_image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), title, cmap=None)
-
-
 def show_image(img, title="image", cmap="gray"):
-    plt.imshow(img, cmap=cmap)
+    if cmap.lower() == "bgr":
+        plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    else:
+        plt.imshow(img, cmap=cmap)
     plt.title(title)
     plt.show()
 
 
-def plot_images(images, cmap="gray", background_color="yellow", figsize=(5, 5)):
+def plot_images(images, cmap="gray", figsize=(5, 5)):
     # show bgr
     fig = plt.figure(figsize=figsize)
     gs = gridspec.GridSpec(1, len(images))
@@ -271,13 +305,11 @@ def get_scaled_box_padding(box, boxes, image_width, image_height):
     width_ratio = avg_width / image_width
     height_ratio = avg_height / image_height
 
-    K = 1.1
-
     x_ratio = Y_SIZE / X_SIZE
     y_ratio = 1  # X_SIZE / Y_SIZE
 
-    scale_factor_x = K * (1 - width_ratio) * x_ratio
-    scale_factor_y = K * (1 - height_ratio) * y_ratio
+    scale_factor_x = BOUNDING_BOX_SCALE * (1 - width_ratio) * x_ratio
+    scale_factor_y = BOUNDING_BOX_SCALE * (1 - height_ratio) * y_ratio
 
     avg_width = avg_width * scale_factor_x
     avg_height = avg_height * scale_factor_y

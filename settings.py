@@ -37,6 +37,9 @@ VALIDATION_PERCENT = 0.2
 
 RANDOM_STATE = 1
 
+BG_COLOR = 255 # Background color is white
+FG_COLOR = 0 # Foreground color is black (LETTERS SHOULD BE BLACK)
+
 X_SIZE = 50#75
 Y_SIZE = 100
 
@@ -742,3 +745,5 @@ ENGLISH_FNT_FONTS = [
     1015,
     1016,
 ]
+
+BOUNDING_BOX_SCALE = 1.15
